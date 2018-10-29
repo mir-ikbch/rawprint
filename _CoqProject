@@ -1,0 +1,12 @@
+src/print.ml
+src/ppCoq.ml
+src/rawprint.ml
+src/g_rawprint.ml4
+src/rawprint.mllib
+theories/Rawprint.v
+-R theories Rawprint
+-I src
+"CAMLC?" = "$(OCAMLFIND) ocamlc -c -rectypes -thread -bin-annot"
+"CAMLOPTC?" = "$(OCAMLFIND) ocamlopt -c -rectypes -thread -bin-annot"
+"CAMLLINK?" = "$(OCAMLFIND) ocamlc -rectypes -thread -bin-annot"
+"CAMLOPTLINK?" = "$(OCAMLFIND) ocamlopt -rectypes -thread -bin-annot"
