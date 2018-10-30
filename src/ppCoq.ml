@@ -141,6 +141,7 @@ let pp_entry = pp_constr
 let pp_retroknowledge_action = pp_variant (function
 | RKRegister(f,e) -> "RKRegister", [!%pp_field f; !%pp_entry e]
 )
+let pp_retroknowledge = ??"retroknowldege"
 
 open Declarations
 open Context
@@ -231,7 +232,6 @@ let pp_mutual_inductive_body = pp_record (fun mib -> [
   "mind_nparams",     !%pp_int mib.mind_nparams;
   "mind_nparams_rec", !%pp_int mib.mind_nparams_rec;
   "mind_params_ctxt", !%pp_rel_context mib.mind_params_ctxt;
-  "mind_polymorphic", !%pp_bool mib.mind_polymorphic;
   "mind_universes",   !%pp_universe_context mib.mind_universes;
   "mind_private",     !%(pp_option pp_bool) mib.mind_private;
 ])
@@ -254,8 +254,8 @@ let rec pp_functorize (pp_ty, pp_a) = pp_variant (function
 let pp_in_universe_context pp_a = pp_tuple_2 (pp_a, pp_universe_context)
 let pp_with_declaration = pp_variant (function
 | WithMod(is,mp) -> "WithMod", [!%(pp_list pp_id_t) is; !%pp_module_path mp]
-| WithDef(is,cc) ->
-   "WithDef", [!%(pp_list pp_id_t) is; !%(pp_in_universe_context pp_constr) cc]
+| WithDef(is,(c,_)) ->
+    "WithDef", [!%(pp_list pp_id_t) is; !%pp_constr c]
 )
 let rec pp_module_alg_expr prf = pp_variant (function
 | MEident mp -> "MEident", [!%pp_module_path mp]
@@ -278,6 +278,7 @@ let pp_constant_def = pp_variant (function
 )
 let pp_constant_type = 
   pp_declaration_arity (pp_types, pp_tuple_2 (pp_rel_context, pp_template_arity)) 
+(*
 let pp_emitcode = ??"emitcode"
 let pp_patch = ??"patch"
 let pp_fv = ??"fv"
@@ -287,6 +288,8 @@ let pp_body_code = pp_variant Cemitcodes.(function
 | BCalias c -> "BCalias", [!%pp_constant c]
 | BCconstant -> "BCconstant", []
 )
+*)
+let pp_body_code = ??"body_code"
 let pp_to_patch_substituted prf tps =
   pp_tuple_2 (pp_option (pp_list pp_substitution), pp_body_code) prf
              (Cemitcodes.repr_body_code tps)
@@ -294,9 +297,8 @@ let pp_constant_universes = ??"constant_universes"
 let pp_constant_body = pp_record (fun cb -> [
   "const_hyps",        !%pp_section_context cb.const_hyps;
   "const_body",        !%pp_constant_def cb.const_body;
-  "const_type",        !%pp_constant_type cb.const_type;
+  "const_type",        !%pp_constr cb.const_type;
   "const_body_code",   !%(pp_option pp_to_patch_substituted) cb.const_body_code;
-  "const_polymorphic", !%pp_bool cb.const_polymorphic;
   "const_universes",   !%pp_constant_universes cb.const_universes;
   "const_proj",        !%(pp_option pp_projection_body) cb.const_proj;
   "const_inline_code", !%pp_bool cb.const_inline_code;
@@ -324,9 +326,9 @@ and pp_module_body prf = pp_record (fun mb -> [
   "mod_type_alg", !%(pp_option pp_module_expression) mb.mod_type_alg;
   "mod_constraints", !%pp_context_set_t mb.mod_constraints;
   "mod_delta",    !%pp_delta_resolver mb.mod_delta;
-  "mod_retroknowledge", !%(pp_list pp_retroknowledge_action) mb.mod_retroknowledge;
+  "mod_retroknowledge", !%pp_retroknowledge mb.mod_retroknowledge;
 ]) prf
-and pp_module_type_body prf = pp_module_body prf
+and pp_module_type_body = ??"module_type_body"(*pp_module_body prf*)
 
 open Pre_env
 let pp_link_info = pp_variant (function 
@@ -353,7 +355,7 @@ let pp_globals = pp_record (fun g -> [
   "env_modtypes",   !%(pp_mpmap_t pp_module_type_body) g.env_modtypes;
 ])
 let pp_named_context = pp_list pp_named_declaration
-let pp_lazy_val = ??"lazy_val"
+let pp_lazy_val: Format.formatter -> Pre_env.lazy_val -> unit = ??"lazy_val" 
 let pp_named_vals = pp_list (pp_tuple_2 (pp_id_t, pp_lazy_val))
 (*let pp_universes = pp_of (Univ.pr_universes Univ.Level.pr) (* too many *)*)
 let pp_universes = !!"universes"
@@ -366,7 +368,7 @@ let pp_stratification = pp_record (fun s -> [
   "env_universes", !%pp_universes s.env_universes;
   "env_engagement", !%pp_engagement s.env_engagement;
 ])
-let pp_conv_oracle = ??"conv_oracle" (* strategy? *)
+let pp_conv_oracle : Format.formatter -> Conv_oracle.oracle -> unit = ??"conv_oracle" (* strategy? *)
 let pp_retroknowledge = ??"retroknowledge" (* optimization? *)
 let pp_int_map pp_a prf im = pp_list (pp_tuple_2 (pp_int,pp_a)) prf (Int.Map.bindings im)
 let pp_cooking_info prf ci = ??"cooking_info" prf ci
@@ -388,11 +390,9 @@ let pp_opaquetab prf ot =
 let pp_pre_env = pp_record (fun e -> [
   "env_globals",        !%pp_globals e.env_globals;
   "env_named_context",  !%pp_named_context e.env_named_context.env_named_ctx;
-  "env_rel_context",    !%pp_rel_context e.env_rel_context;
-  "env_rel_val",        !%(pp_list pp_lazy_val) e.env_rel_val;
+  "env_rel_context",    !%pp_rel_context e.env_rel_context.env_rel_ctx;
   "env_nb_rel",         !%pp_int e.env_nb_rel;
   "env_stratification", !%pp_stratification e.env_stratification;
-  "env_conv_oracle",    !%pp_conv_oracle e.env_conv_oracle;
   "retroknowledge",     !%pp_retroknowledge e.retroknowledge;
   "indirect_pterms",    !%pp_opaquetab e.indirect_pterms;
 ])
@@ -424,13 +424,13 @@ let pp_evar_kinds_t = pp_variant Evar_kinds.(function
                                           !%(pp_tuple_2 (pp_int, pp_option pp_id_t)) ii;
                                           !%pp_bool b]
 | BinderType n -> "BinderTypeof", [!%pp_name_t n]
-| QuestionMark ods -> "QuestionMark", [!%pp_obligation_definition_status ods]
+| QuestionMark(ods,na) -> "QuestionMark", [!%pp_obligation_definition_status ods; !%pp_name_t na]
 | CasesType b -> "CasesType", [!%pp_bool b]
 | InternalHole -> "InternalHole", []
 | TomatchTypeParameter(ind,i) -> "TomatchTypeParameter", [!%pp_inductive ind; !%pp_int i]
 | GoalEvar -> "GoalEvar", []
 | ImpossibleCase -> "ImpossibleCase", []
-| MatchingVar(b,i) -> "MatchingVar", [!%pp_bool b; !%pp_id_t i]
+| MatchingVar _ -> "MatchingVar", []
 | VarInstance i -> "VarInstance", [!%pp_id_t i]
 | SubEvar k -> "SubEvar", [!%pp_existential_key k]
 )

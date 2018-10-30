@@ -4,7 +4,7 @@ let print_proof_term () =
         Not_found -> failwith "give_me_the_proof:notfound" in
   let pprf = try Proof.partial_proof p with
                Not_found -> failwith "partial_proof:not found" in
-  List.iter PpCoq.print_constr pprf
+  List.iter PpCoq.print_constr (List.map EConstr.Unsafe.to_constr pprf)
 
 let print_reference r =
   Format.printf "%a@."
@@ -15,4 +15,4 @@ let print_constr cin =
   let env = Global.env () in
   let evd = Evd.from_env env in
   let c, evd = Constrintern.interp_type env evd cin in
-  PpCoq.print_constr c
+  PpCoq.print_constr (EConstr.Unsafe.to_constr c)

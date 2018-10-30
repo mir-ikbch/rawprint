@@ -1,6 +1,6 @@
 (*i camlp4deps: "grammar/grammar.cma" i*)
 
-let wit_reference = Constrarg.wit_ref
+let wit_reference = Stdarg.wit_ref
 
 DECLARE PLUGIN "rawprint"
 
